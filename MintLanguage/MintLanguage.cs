@@ -22,7 +22,7 @@ namespace MintLanguage
             IdentifierTerminal identifier = new IdentifierTerminal("identifier");
             StringLiteral backString = new StringLiteral("back-string", "`");
             StringLiteral doubleString = new StringLiteral("double-string", "\"");
-            KeyTerm refMark = ToTerm("&", "ref-mark");
+            KeyTerm refMark = ToTerm("&");
             KeyTerm lPar = ToTerm("(");
             KeyTerm rPar = ToTerm(")");
             KeyTerm lBrace = ToTerm("{");
@@ -57,12 +57,19 @@ namespace MintLanguage
             NonTerminal variableDeclarators = new NonTerminal("variable-declarators");
             NonTerminal initializer = new NonTerminal("initializer");
 
-
+            NonTerminal unaryOperator = new NonTerminal("unary-operator", ToTerm("-") | "!");
+            NonTerminal binaryOperator = new NonTerminal("binary-operator", ToTerm("<") | "||" | "&&" | "|" | "^" | "&" | "==" | "!=" | ">" | "<=" | ">=" | "<<" | ">>" | "+" | "-" | "*" | "/" | "%");
+            NonTerminal assignmentOperator = new NonTerminal("assignment-operator", ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=");
+            NonTerminal incOrDec = new NonTerminal("inc-or-dec", ToTerm("++") | "--");
 
             NonTerminal expression = new NonTerminal("expression");
             NonTerminal typecast = new NonTerminal("typecast");
-            NonTerminal primaryExpression = new NonTerminal("primary-expression");
-            NonTerminal binOpExp = new NonTerminal("binary-operation");
+            NonTerminal primaryExp = new NonTerminal("primary-expression");
+            NonTerminal binOpExp = new NonTerminal("binary-expression");
+            NonTerminal unaryExp = new NonTerminal("unary-expression");
+            NonTerminal parenthExp = new NonTerminal("parenthesized-expression");
+            NonTerminal preIncDecExp = new NonTerminal("pre-inc/dec");
+            NonTerminal postIncDecExp = new NonTerminal("post-inc/dec");
 
             NonTerminal memberAccess = new NonTerminal("member-access");
             NonTerminal memberAccessSegment = new NonTerminal("member-access-segment");
@@ -71,6 +78,38 @@ namespace MintLanguage
             NonTerminal methodInvocation = new NonTerminal("method-invocation");
             NonTerminal argList = new NonTerminal("arg-list");
             NonTerminal arg = new NonTerminal("arg");
+            #endregion
+
+            #region operators, punctuation and delimiters
+            RegisterOperators(1, "||");
+            RegisterOperators(2, "&&");
+            RegisterOperators(3, "|");
+            RegisterOperators(4, "^");
+            RegisterOperators(5, "&");
+            RegisterOperators(6, "==", "!=");
+            RegisterOperators(7, "<", ">", "<=", ">=");
+            RegisterOperators(8, "<<", ">>");
+            RegisterOperators(9, "+", "-");
+            RegisterOperators(10, "*", "/", "%");
+            //RegisterOperators(11, ".");
+            // RegisterOperators(12, "++", "--");
+            RegisterOperators(-3, "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=");
+
+            MarkPunctuation(lPar, rPar, lBrace, rBrace, comma, semi, dot);
+            this.MarkTransient(declaration, statement, embeddedStatement, expression, literal, binaryOperator, primaryExp, parenParameters,
+                declarationStatement, incOrDec, parenthExp);
+
+            this.AddTermsReportGroup("assignment", "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=");
+            this.AddTermsReportGroup("statement", "if", "switch", "do", "while", "for", "foreach", "continue", "goto", "return", "try", "yield",
+                                                  "break", "throw", "unchecked", "using");
+            this.AddTermsReportGroup("constant", number, backString, doubleString);
+            this.AddTermsReportGroup("constant", "true", "false");
+
+            this.AddTermsReportGroup("unary operator", "+", "-", "!", "~");
+
+            this.AddToNoReportGroup(comma, semi);
+            this.AddToNoReportGroup("++", "--", "{", "}");
+            //
             #endregion
 
             #region Place Rules Here
@@ -109,9 +148,14 @@ namespace MintLanguage
             embeddedStatement.Rule = block | semi;
 
             // expression
-            expression.Rule = typecast | primaryExpression;
-            typecast.Rule = lPar + typeRef + rPar + primaryExpression;
-            primaryExpression.Rule = literal | identifier | memberAccess;
+            expression.Rule = typecast | binOpExp | primaryExp;
+            typecast.Rule = lPar + typeRef + rPar + primaryExp;
+            binOpExp.Rule = expression + binaryOperator + expression;
+            primaryExp.Rule = literal | identifier | memberAccess | unaryExp | parenthExp | preIncDecExp | postIncDecExp;
+            unaryExp.Rule = unaryOperator + primaryExp;
+            parenthExp.Rule = lPar + expression + rPar;
+            preIncDecExp.Rule = incOrDec + memberAccess;
+            postIncDecExp.Rule = memberAccess + incOrDec;
 
             memberAccess.Rule = identifier + memberAccessSegments;
             memberAccessSegments.Rule = MakePlusRule(memberAccessSegments, null, memberAccessSegment);
@@ -122,7 +166,6 @@ namespace MintLanguage
             arg.Rule = expression;
             #endregion
 
-            MarkPunctuation(lPar, rPar, lBrace, rBrace, comma, semi, dot);
         }
     }
 }
