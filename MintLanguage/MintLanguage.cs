@@ -58,19 +58,30 @@ namespace MintLanguage
             var initializer = new NonTerminal("initializer");
 
             var unaryOperator = new NonTerminal("unary-operator", ToTerm("-") | "!");
-            var binaryOperator = new NonTerminal("binary-operator", ToTerm("<") | "||" | "&&" | "|" | "^" | "&" | "==" | "!=" | ">" | "<=" | ">=" | "<<" | ">>" | "+" | "-" | "*" | "/" | "%");
-            var assignmentOperator = new NonTerminal("assignment-operator", ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=");
+
+            var multiplicativeOperator = new NonTerminal("multiplicative-operator", ToTerm("*") | "/" | "%");
+            var additiveOperator = new NonTerminal("additive-operator", ToTerm("+") | "-");
+            var relationalEqOperator = new NonTerminal("relational-equality-operator", ToTerm("<") | ">" | "<=" | ">=" | "==" | "!=");
+            var assignmentOperator = new NonTerminal("assignment-operator", ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=");
             var incOrDec = new NonTerminal("inc-or-dec", ToTerm("++") | "--");
-            MarkTransient(incOrDec);
+            MarkTransient(multiplicativeOperator, additiveOperator, relationalEqOperator, assignmentOperator, incOrDec);
 
             var expression = new NonTerminal("expression");
             var typecast = new NonTerminal("typecast");
+            var castExp = new NonTerminal("cast-expression");
             var primaryExp = new NonTerminal("primary-expression");
-            var binOpExp = new NonTerminal("binary-expression");
-            var unaryExp = new NonTerminal("unary-expression");
-            var parenthExp = new NonTerminal("parenthesized-expression");
+            var postfix = new NonTerminal("postfix");
+            var postfixExp = new NonTerminal("postfix-expression");
+            var postfixedExp = new NonTerminal("postfixed-expression");
             var preIncDecExp = new NonTerminal("pre-inc/dec");
-            var postIncDecExp = new NonTerminal("post-inc/dec");
+            var binExp = new NonTerminal("binary-expression");
+            var multiExp = new NonTerminal("multi-expression");
+            var additiveExp = new NonTerminal("additive-expression");
+            var relationalExp = new NonTerminal("relational-expression");
+            var assignmentExp = new NonTerminal("assignment-expression");
+            var unaryExp = new NonTerminal("unary-expression");
+            var unaryOperatorExp = new NonTerminal("unary-operator-expression");
+            var parenthExp = new NonTerminal("parenthesized-expression");
             var localizeExp = new NonTerminal("localize");
 
             var memberAccess = new NonTerminal("member-access");
@@ -107,37 +118,12 @@ namespace MintLanguage
             #region Place Rules Here
             this.Root = new NonTerminal("Program", statementListOpt);
 
-            // expression
-            expression.Rule = typecast | binOpExp | primaryExp;
-            typecast.Rule = lPar + type + rPar + primaryExp;
-            binOpExp.Rule = expression + binaryOperator + expression;
-            primaryExp.Rule = literal | memberAccess | unaryExp | parenthExp | localizeExp | preIncDecExp | postIncDecExp;
-            unaryExp.Rule = unaryOperator + primaryExp;
-            parenthExp.Rule = lPar + expression + rPar;
-            preIncDecExp.Rule = incOrDec + memberAccess;
-            postIncDecExp.Rule = memberAccess + incOrDec;
-            localizeExp.Rule = lSqBracket + doubleString + rSqBracket;
-            MarkTransient(expression, primaryExp);
-
-            preIncDecExp.Rule = incOrDec + memberAccess;
-            postIncDecExp.Rule = memberAccess + incOrDec;
-
-            memberAccess.Rule = identifier + memberAccessSegments;
-            memberAccessSegments.Rule = MakeStarRule(memberAccessSegments, null, memberAccessSegment);
-            memberAccessSegment.Rule = dot + identifier | methodInvocation;
-
-            methodInvocation.Rule = lPar + argList + rPar;
-            argList.Rule = MakeStarRule(argList, comma, arg);
-            arg.Rule = expression;
-            MarkTransient(argList);
-
             // Statements and blocks
+            block.Rule = lBrace + statementListOpt + rBrace;
             statement.Rule = declarationStatement | embeddedStatement;
             statementListOpt.Rule = MakeStarRule(statementListOpt, null, statement);
-            block.Rule = lBrace + statementListOpt + rBrace;
             MarkTransient(statement);
 
-            // Decalartion statement
             declarationStatement.Rule = variableDeclaration + semi;
             variableDeclaration.Rule = type + variableDeclarators;
             variableDeclarator.Rule = identifier + variableInitOpt;
@@ -147,12 +133,52 @@ namespace MintLanguage
             initializer.Rule = expression;
             MarkTransient(declarationStatement, variableInitOpt);
 
-            // Embedded statement
             embeddedStatement.Rule = block | semi | statementExp + semi;
-            statementExp.Rule = memberAccess | memberAccess + assignmentOperator + expression | preIncDecExp | postIncDecExp;
+            statementExp.Rule = expression;
             MarkTransient(embeddedStatement);
+
+            // expression
+            expression.Rule =  binExp | unaryExp | typecast;
+
+            binExp.Rule = multiExp | additiveExp | relationalExp | assignmentExp;
+            multiExp.Rule = expression + multiplicativeOperator + expression;
+            additiveExp.Rule = expression + additiveOperator + expression;
+            relationalExp.Rule = expression + relationalEqOperator + expression;
+            assignmentExp.Rule = expression + assignmentOperator + expression;
+            MarkTransient(binExp);
+
+            castExp.Rule = unaryExp | typecast;
+            typecast.Rule = lPar + type + rPar + castExp;
+            MarkTransient(castExp);
+
+            unaryExp.Rule = postfixExp | preIncDecExp | unaryOperatorExp;
+            preIncDecExp.Rule = incOrDec + unaryExp;
+            unaryOperatorExp.Rule = unaryOperator + castExp;
+            MarkTransient(unaryExp);
+
+            postfixExp.Rule = primaryExp | postfixedExp;
+            postfixedExp.Rule = postfixExp + postfix;
+            postfix.Rule = methodInvocation | memberAccess | incOrDec;
+            MarkTransient(postfixExp);
+
+            primaryExp.Rule = literal | identifier | parenthExp | localizeExp;
+            parenthExp.Rule = lPar + expression + rPar;
+            localizeExp.Rule = lSqBracket + doubleString + rSqBracket;
+            MarkTransient(expression, primaryExp);
+
+            memberAccess.Rule = dot + identifier;
+
+            methodInvocation.Rule = lPar + argList + rPar;
+            argList.Rule = MakeStarRule(argList, comma, arg);
+            arg.Rule = expression;
+            MarkTransient(argList);
             #endregion
 
+        }
+
+        new void MarkTransient(params NonTerminal[] args)
+        {
+            base.MarkTransient(args);
         }
     }
 }
