@@ -42,6 +42,7 @@ namespace MintLanguage
             var literal = new NonTerminal("literal", number | backString | doubleString | "true" | "false");
             var breakStatement = new NonTerminal("break", @break + semi);
             var continueStatement = new NonTerminal("continue", @continue + semi);
+            var returnStatement = new NonTerminal("return");
             MarkTransient(literal, breakStatement, continueStatement);
 
             var typeName = new NonTerminal("typeName", ToTerm("void") | "bool" | "character" | "item" | "int" | "string");
@@ -55,6 +56,7 @@ namespace MintLanguage
             var declarationStatement = new NonTerminal("declaration-statement");
             var selectionStatement = new NonTerminal("selection-statement");
             var iterationStatement = new NonTerminal("iteration-statement");
+            var jumpStatement = new NonTerminal("jump-statement");
             var statement = new NonTerminal("statement");
             var statementListOpt = new NonTerminal("statement-list-opt");
             var embeddedStatement = new NonTerminal("embedded-statement");
@@ -71,6 +73,12 @@ namespace MintLanguage
             var caseStatement = new NonTerminal("case-statement");
             var caseBodyStatement = new NonTerminal("case-body-statement");
             var caseBodyStatements = new NonTerminal("case-body-statements");
+
+            var whileStatement = new NonTerminal("while-statement");
+            var forStatement = new NonTerminal("for-statement");
+            var forInitExp = new NonTerminal("for-init-exp");
+            var forCondExp = new NonTerminal("for-cond-exp");
+            var forLoopExp = new NonTerminal("for-loop-exp");
 
             var variableDeclaration = new NonTerminal("variable-declaration");
             var variableDeclarator = new NonTerminal("variable-declarator");
@@ -89,6 +97,7 @@ namespace MintLanguage
             MarkTransient(multiplicativeOperator, additiveOperator, relationalEqOperator, assignmentOperator, incOrDec);
 
             var expression = new NonTerminal("expression");
+            var expressionOpt = new NonTerminal("expression-opt", Empty | expression);
             var typecast = new NonTerminal("typecast");
             var castExp = new NonTerminal("cast-expression");
             var primaryExp = new NonTerminal("primary-expression");
@@ -105,6 +114,7 @@ namespace MintLanguage
             var unaryOperatorExp = new NonTerminal("unary-operator-expression");
             var parenthExp = new NonTerminal("parenthesized-expression");
             var localizeExp = new NonTerminal("localize");
+            MarkTransient(expressionOpt);
 
             var memberAccess = new NonTerminal("member-access");
             var memberAccessSegment = new NonTerminal("member-access-segment");
@@ -155,12 +165,14 @@ namespace MintLanguage
             initializer.Rule = expression;
             MarkTransient(declarationStatement, variableInitOpt);
 
-            embeddedStatement.Rule = block | nullStatement | expressionStatement | selectionStatement;
-            expressionStatement.Rule = expression + semi;
+            embeddedStatement.Rule = block | nullStatement | expressionStatement | selectionStatement | iterationStatement | jumpStatement;
             nullStatement.Rule = semi;
-            MarkTransient(embeddedStatement);
-
+            expressionStatement.Rule = expression + semi;
             selectionStatement.Rule = ifStatement | switchStatement;
+            iterationStatement.Rule = whileStatement | forStatement;
+            jumpStatement.Rule = breakStatement | continueStatement | returnStatement;
+            returnStatement.Rule = @return + expressionOpt + semi;
+            MarkTransient(embeddedStatement, jumpStatement);
 
             ifStatement.Rule = ToTerm("if") + lPar + expression + rPar + embeddedStatement + elseStatementOpt;
             elseStatementOpt.Rule = Empty | elseStatement;
@@ -173,8 +185,14 @@ namespace MintLanguage
             caseLabel.Rule = caseConstantLabel | caseDefaultLabel;
             caseConstantLabel.Rule = ToTerm("case") + literal;
             caseDefaultLabel.Rule = ToTerm("default");
-            caseBodyStatements.Rule = MakeStarRule(caseBodyStatements, caseBodyStatement);
-            caseBodyStatement.Rule = statement | breakStatement;
+            caseBodyStatements.Rule = MakeStarRule(caseBodyStatements, statement);
+
+            whileStatement.Rule = "while" + lPar + expression + rPar + embeddedStatement;
+
+            forStatement.Rule = "for" + lPar + forInitExp + semi + forCondExp + semi + forLoopExp + rPar + embeddedStatement;
+            forInitExp.Rule = expressionOpt | variableDeclaration;
+            forCondExp.Rule = expressionOpt;
+            forLoopExp.Rule = expressionOpt;
 
             // expression
             expression.Rule =  binExp | unaryExp | typecast;
