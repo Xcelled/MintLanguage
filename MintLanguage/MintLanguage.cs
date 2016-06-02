@@ -103,9 +103,10 @@ namespace MintLanguage
             var multiplicativeOperator = new NonTerminal("multiplicative-operator", ToTerm("*") | "/" | "%");
             var additiveOperator = new NonTerminal("additive-operator", ToTerm("+") | "-");
             var relationalEqOperator = new NonTerminal("relational-equality-operator", ToTerm("<") | ">" | "<=" | ">=" | "==" | "!=");
+            var logicalOperator = new NonTerminal("logical-operator", ToTerm("&&") | "||");
             var assignmentOperator = new NonTerminal("assignment-operator", ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=");
             var incOrDec = new NonTerminal("inc-or-dec", ToTerm("++") | "--");
-            MarkTransient(multiplicativeOperator, additiveOperator, relationalEqOperator, assignmentOperator, incOrDec);
+            MarkTransient(multiplicativeOperator, additiveOperator, relationalEqOperator, logicalOperator, assignmentOperator, incOrDec);
 
             var expression = new NonTerminal("expression");
             var expressionOpt = new NonTerminal("expression-opt", Empty | expression);
@@ -121,6 +122,7 @@ namespace MintLanguage
             var additiveExp = new NonTerminal("additive-expression");
             var relationalExp = new NonTerminal("relational-expression");
             var assignmentExp = new NonTerminal("assignment-expression");
+            var logicalExp = new NonTerminal("logical-expression");
             var unaryExp = new NonTerminal("unary-expression");
             var unaryOperatorExp = new NonTerminal("unary-operator-expression");
             var parenthExp = new NonTerminal("parenthesized-expression");
@@ -215,11 +217,12 @@ namespace MintLanguage
             // expression
             expression.Rule =  binExp | unaryExp | typecast;
 
-            binExp.Rule = multiExp | additiveExp | relationalExp | assignmentExp;
+            binExp.Rule = multiExp | additiveExp | relationalExp | logicalExp | assignmentExp;
             multiExp.Rule = expression + multiplicativeOperator + expression;
             additiveExp.Rule = expression + additiveOperator + expression;
             relationalExp.Rule = expression + relationalEqOperator + expression;
             assignmentExp.Rule = expression + assignmentOperator + expression;
+            logicalExp.Rule = expression + logicalOperator + expression;
             MarkTransient(binExp);
 
             castExp.Rule = unaryExp | typecast;
