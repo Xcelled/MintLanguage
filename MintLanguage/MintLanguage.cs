@@ -111,7 +111,7 @@ namespace MintLanguage
             expression.Rule = typecast | binOpExp | primaryExp;
             typecast.Rule = lPar + type + rPar + primaryExp;
             binOpExp.Rule = expression + binaryOperator + expression;
-            primaryExp.Rule = literal | identifier | memberAccess | unaryExp | parenthExp | preIncDecExp | postIncDecExp | localizeExp;
+            primaryExp.Rule = literal | memberAccess | unaryExp | parenthExp | localizeExp; // | preIncDecExp | postIncDecExp;
             unaryExp.Rule = unaryOperator + primaryExp;
             parenthExp.Rule = lPar + expression + rPar;
             preIncDecExp.Rule = incOrDec + memberAccess;
@@ -120,7 +120,7 @@ namespace MintLanguage
             MarkTransient(expression, primaryExp);
 
             memberAccess.Rule = identifier + memberAccessSegments;
-            memberAccessSegments.Rule = MakePlusRule(memberAccessSegments, null, memberAccessSegment);
+            memberAccessSegments.Rule = MakeStarRule(memberAccessSegments, null, memberAccessSegment);
             memberAccessSegment.Rule = dot + identifier | methodInvocation;
 
             methodInvocation.Rule = lPar + argList + rPar;
@@ -129,12 +129,10 @@ namespace MintLanguage
             MarkTransient(argList);
 
             // Statements and blocks
-            statement.Rule = declarationStatement; //| embeddedStatement;
+            statement.Rule = declarationStatement | embeddedStatement;
             statementListOpt.Rule = MakeStarRule(statementListOpt, null, statement);
             block.Rule = lBrace + statementListOpt + rBrace;
             MarkTransient(statement);
-
-            //statementExp.Rule = memberAccess | memberAccess + assignmentOperator + expression | preIncDecExp | postIncDecExp;
 
             // Decalartion statement
             declarationStatement.Rule = variableDeclaration + semi;
@@ -145,6 +143,11 @@ namespace MintLanguage
             variableDeclarators.Rule = MakePlusRule(variableDeclarators, comma, variableDeclarator);
             initializer.Rule = expression;
             MarkTransient(declarationStatement, variableInitOpt);
+
+            // Embedded statement
+            embeddedStatement.Rule = block | semi | statementExp;
+            statementExp.Rule = memberAccess | memberAccess + assignmentOperator + expression; // | preIncDecExp | postIncDecExp;
+            MarkTransient(embeddedStatement);
             #endregion
 
         }
