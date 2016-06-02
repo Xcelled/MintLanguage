@@ -63,6 +63,7 @@ namespace MintLanguage
             NonTerminal incOrDec = new NonTerminal("inc-or-dec", ToTerm("++") | "--");
 
             NonTerminal expression = new NonTerminal("expression");
+            NonTerminal identifierOrTypecast = new NonTerminal("identifierOrTypecast");
             NonTerminal typecast = new NonTerminal("typecast");
             NonTerminal primaryExp = new NonTerminal("primary-expression");
             NonTerminal binOpExp = new NonTerminal("binary-expression");
@@ -149,7 +150,7 @@ namespace MintLanguage
 
             // expression
             expression.Rule = typecast | binOpExp | primaryExp;
-            typecast.Rule = lPar + typeRef + rPar + primaryExp;
+            typecast.Rule = parenthExp + primaryExp;
             binOpExp.Rule = expression + binaryOperator + expression;
             primaryExp.Rule = literal | identifier | memberAccess | unaryExp | parenthExp | preIncDecExp | postIncDecExp;
             unaryExp.Rule = unaryOperator + primaryExp;
