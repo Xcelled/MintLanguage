@@ -18,6 +18,8 @@ namespace MintLanguage
             NonGrammarTerminals.Add(blockComment);
             NonGrammarTerminals.Add(lineComment);
 
+            var types = new[] { "bool", "character", "item", "int", "object_list", "string", "void" };
+
             var number = new NumberLiteral("number");
             var identifier = new IdentifierTerminal("identifier");
             var backString = new StringLiteral("back-string", "`");
@@ -45,10 +47,10 @@ namespace MintLanguage
             var returnStatement = new NonTerminal("return");
             MarkTransient(literal, breakStatement, continueStatement);
 
-            var typeName = new NonTerminal("typeName", ToTerm("void") | "bool" | "character" | "item" | "int" | "string");
+            var typeName = new NonTerminal("typeName", types.Aggregate<string, BnfExpression>(null, (a, t) => a == null ? t : a | t));
             var refMarkOpt = new NonTerminal("typeRefOpt", Empty | refMark);
             var type = new NonTerminal("type", typeName);
-            var typeExt = new NonTerminal("type-ext", typeName + refMarkOpt);
+            var typeExt = new NonTerminal("type-ext", type + refMarkOpt);
             MarkTransient(typeName, refMarkOpt);
 
             var block = new NonTerminal("block");
@@ -152,8 +154,8 @@ namespace MintLanguage
             RegisterOperators(-3, "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=");
 
             MarkPunctuation(lPar, rPar, lBrace, rBrace, lSqBracket, rSqBracket, comma, semi, dot, colon);
-           // this.MarkTransient(declaration, statement, embeddedStatement, expression, literal, binaryOperator, primaryExp, parenParameters,
-           //     declarationStatement, incOrDec, parenthExp);
+
+            AddTermsReportGroup("type", types);
             #endregion
 
             #region Place Rules Here
