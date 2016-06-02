@@ -44,10 +44,13 @@ namespace MintLanguage
             MarkTransient(typeName, typeRefOpt);
 
             var block = new NonTerminal("block");
-            var statementExp = new NonTerminal("statement-exp");
+            var expressionStatement = new NonTerminal("expression-statement");
+            var nullStatement = new NonTerminal("null-statement");
+            var declarationStatement = new NonTerminal("declaration-statement");
+            var selectionStatement = new NonTerminal("selection-statement");
+            var iterationStatement = new NonTerminal("iteration-statement");
             var statement = new NonTerminal("statement");
             var statementListOpt = new NonTerminal("statement-list-opt");
-            var declarationStatement = new NonTerminal("declaration-statement");
             var embeddedStatement = new NonTerminal("embedded-statement");
 
             var variableDeclaration = new NonTerminal("variable-declaration");
@@ -133,8 +136,9 @@ namespace MintLanguage
             initializer.Rule = expression;
             MarkTransient(declarationStatement, variableInitOpt);
 
-            embeddedStatement.Rule = block | semi | statementExp + semi;
-            statementExp.Rule = expression;
+            embeddedStatement.Rule = block | nullStatement | expressionStatement;
+            expressionStatement.Rule = expression + semi;
+            nullStatement.Rule = semi;
             MarkTransient(embeddedStatement);
 
             // expression
@@ -173,7 +177,6 @@ namespace MintLanguage
             arg.Rule = expression;
             MarkTransient(argList);
             #endregion
-
         }
 
         new void MarkTransient(params NonTerminal[] args)
