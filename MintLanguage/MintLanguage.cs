@@ -61,7 +61,7 @@ namespace MintLanguage
             var binaryOperator = new NonTerminal("binary-operator", ToTerm("<") | "||" | "&&" | "|" | "^" | "&" | "==" | "!=" | ">" | "<=" | ">=" | "<<" | ">>" | "+" | "-" | "*" | "/" | "%");
             var assignmentOperator = new NonTerminal("assignment-operator", ToTerm("=") | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=");
             var incOrDec = new NonTerminal("inc-or-dec", ToTerm("++") | "--");
-            MarkTransient(unaryOperator, binaryOperator, assignmentOperator, incOrDec);
+            MarkTransient(incOrDec);
 
             var expression = new NonTerminal("expression");
             var typecast = new NonTerminal("typecast");
@@ -111,13 +111,16 @@ namespace MintLanguage
             expression.Rule = typecast | binOpExp | primaryExp;
             typecast.Rule = lPar + type + rPar + primaryExp;
             binOpExp.Rule = expression + binaryOperator + expression;
-            primaryExp.Rule = literal | memberAccess | unaryExp | parenthExp | localizeExp; // | preIncDecExp | postIncDecExp;
+            primaryExp.Rule = literal | memberAccess | unaryExp | parenthExp | localizeExp | preIncDecExp | postIncDecExp;
             unaryExp.Rule = unaryOperator + primaryExp;
             parenthExp.Rule = lPar + expression + rPar;
             preIncDecExp.Rule = incOrDec + memberAccess;
             postIncDecExp.Rule = memberAccess + incOrDec;
             localizeExp.Rule = lSqBracket + doubleString + rSqBracket;
             MarkTransient(expression, primaryExp);
+
+            preIncDecExp.Rule = incOrDec + memberAccess;
+            postIncDecExp.Rule = memberAccess + incOrDec;
 
             memberAccess.Rule = identifier + memberAccessSegments;
             memberAccessSegments.Rule = MakeStarRule(memberAccessSegments, null, memberAccessSegment);
@@ -145,8 +148,8 @@ namespace MintLanguage
             MarkTransient(declarationStatement, variableInitOpt);
 
             // Embedded statement
-            embeddedStatement.Rule = block | semi | statementExp;
-            statementExp.Rule = memberAccess | memberAccess + assignmentOperator + expression; // | preIncDecExp | postIncDecExp;
+            embeddedStatement.Rule = block | semi | statementExp + semi;
+            statementExp.Rule = memberAccess | memberAccess + assignmentOperator + expression | preIncDecExp | postIncDecExp;
             MarkTransient(embeddedStatement);
             #endregion
 
