@@ -18,7 +18,7 @@ namespace MintLanguage
             NonGrammarTerminals.Add(blockComment);
             NonGrammarTerminals.Add(lineComment);
 
-            var types = new[] { "bool", "character", "item", "int", "object_list", "string", "void" };
+            var types = new[] { "bool", "character", "dungeon", "item", "int", "float", "object_list", "puzzle", "puzzle_chest", "string", "void" };
 
             var number = new NumberLiteral("number");
             var identifier = new IdentifierTerminal("identifier");
@@ -136,8 +136,9 @@ namespace MintLanguage
             var methodInvocation = new NonTerminal("method-invocation");
             var argList = new NonTerminal("arg-list");
             var arg = new NonTerminal("arg");
-
-
+            var methodExtern = new NonTerminal("method-extern");
+            var methodExternOpt = new NonTerminal("method-extern-opt", Empty | methodExtern);
+            MarkTransient(methodExternOpt);
             #endregion
 
             #region operators, punctuation and delimiters
@@ -173,6 +174,7 @@ namespace MintLanguage
             declarationStatement.Rule = functionDeclaration | blockDeclaration + semi;
             blockDeclaration.Rule = simpleDeclaration;
             declarator.Rule = refMarkOpt + identifier;
+            MarkTransient(declarationStatement, blockDeclaration);
 
             functionDeclaration.Rule = functionSpecifier + type + declarator + lPar + parameters + rPar + block;
             parameters.Rule = MakeStarRule(parameters, comma, parameter);
@@ -192,7 +194,7 @@ namespace MintLanguage
             iterationStatement.Rule = whileStatement | forStatement;
             jumpStatement.Rule = breakStatement | continueStatement | returnStatement;
             returnStatement.Rule = @return + expressionOpt + semi;
-            MarkTransient(embeddedStatement, jumpStatement);
+            MarkTransient(embeddedStatement, expressionStatement, selectionStatement, iterationStatement, jumpStatement);
 
             ifStatement.Rule = "if" + lPar + expression + rPar + embeddedStatement + elseStatementOpt;
             elseStatementOpt.Rule = Empty | elseStatement;
@@ -201,9 +203,9 @@ namespace MintLanguage
 
             switchStatement.Rule = "switch" + lPar + expression + rPar + lBrace + switchCases + rBrace;
             switchCases.Rule = MakeStarRule(switchCases, caseStatement);
-            caseStatement.Rule = caseLabel + colon + caseBodyStatements;
+            caseStatement.Rule = caseLabel + caseBodyStatements;
             caseLabel.Rule = caseConstantLabel | caseDefaultLabel;
-            caseConstantLabel.Rule = "case" + literal;
+            caseConstantLabel.Rule = "case" + lPar + literal + rPar;
             caseDefaultLabel.Rule = "default";
             caseBodyStatements.Rule = MakeStarRule(caseBodyStatements, statement);
 
@@ -246,9 +248,10 @@ namespace MintLanguage
 
             memberAccess.Rule = dot + identifier;
 
-            methodInvocation.Rule = lPar + argList + rPar;
+            methodInvocation.Rule = lPar + argList + rPar + methodExternOpt;
             argList.Rule = MakeStarRule(argList, comma, arg);
             arg.Rule = expression;
+            methodExtern.Rule = "extern" + lPar + backString + rPar;
             MarkTransient(argList);
             #endregion
         }
