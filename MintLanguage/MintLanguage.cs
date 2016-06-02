@@ -46,9 +46,10 @@ namespace MintLanguage
             MarkTransient(literal, breakStatement, continueStatement);
 
             var typeName = new NonTerminal("typeName", ToTerm("void") | "bool" | "character" | "item" | "int" | "string");
-            var typeRefOpt = new NonTerminal("typeRefOpt", Empty | refMark);
-            var type = new NonTerminal("type", typeName + typeRefOpt);
-            MarkTransient(typeName, typeRefOpt);
+            var refMarkOpt = new NonTerminal("typeRefOpt", Empty | refMark);
+            var type = new NonTerminal("type", typeName);
+            var typeExt = new NonTerminal("type-ext", typeName + refMarkOpt);
+            MarkTransient(typeName, refMarkOpt);
 
             var block = new NonTerminal("block");
             var expressionStatement = new NonTerminal("expression-statement");
@@ -80,13 +81,21 @@ namespace MintLanguage
             var forCondExp = new NonTerminal("for-cond-exp");
             var forLoopExp = new NonTerminal("for-loop-exp");
 
-            var variableDeclaration = new NonTerminal("variable-declaration");
-            var variableDeclarator = new NonTerminal("variable-declarator");
-            var variableDeclarators = new NonTerminal("variable-declarators");
-            var variableInit = new NonTerminal("variable-initializer");
-            var variableInitOpt = new NonTerminal("variable-initializer-opt");
-            var initializer = new NonTerminal("initializer");
+            var functionDeclaration = new NonTerminal("function-declaration");
+            var blockDeclaration = new NonTerminal("block-declaration");
+            var simpleDeclaration = new NonTerminal("simple-declaration");
 
+            var functionSpecifier = new NonTerminal("function-specifier", ToTerm("client") | "server");
+
+            var parameter = new NonTerminal("parameter");
+            var parameters = new NonTerminal("parameters");
+
+            var initDeclaratorList = new NonTerminal("init-declarator-list");
+            var initDeclarator = new NonTerminal("init-declarator");
+            var declarator = new NonTerminal("declarator");
+            var initializerOpt = new NonTerminal("initializer-opt");
+            var initializer = new NonTerminal("initializer");
+            
             var unaryOperator = new NonTerminal("unary-operator", ToTerm("-") | "!");
 
             var multiplicativeOperator = new NonTerminal("multiplicative-operator", ToTerm("*") | "/" | "%");
@@ -148,7 +157,8 @@ namespace MintLanguage
             #endregion
 
             #region Place Rules Here
-            this.Root = new NonTerminal("Program", statementListOpt);
+            this.Root = new NonTerminal("Program");
+            MakeStarRule(Root, declarationStatement);
 
             // Statements and blocks
             block.Rule = lBrace + statementListOpt + rBrace;
@@ -156,14 +166,20 @@ namespace MintLanguage
             statementListOpt.Rule = MakeStarRule(statementListOpt, null, statement);
             MarkTransient(statement);
 
-            declarationStatement.Rule = variableDeclaration + semi;
-            variableDeclaration.Rule = type + variableDeclarators;
-            variableDeclarator.Rule = identifier + variableInitOpt;
-            variableInit.Rule = "=" + initializer;
-            variableInitOpt.Rule = Empty | variableInit;
-            variableDeclarators.Rule = MakePlusRule(variableDeclarators, comma, variableDeclarator);
-            initializer.Rule = expression;
-            MarkTransient(declarationStatement, variableInitOpt);
+            declarationStatement.Rule = functionDeclaration | blockDeclaration + semi;
+            blockDeclaration.Rule = simpleDeclaration;
+            declarator.Rule = refMarkOpt + identifier;
+
+            functionDeclaration.Rule = functionSpecifier + type + declarator + lPar + parameters + rPar + block;
+            parameters.Rule = MakeStarRule(parameters, comma, parameter);
+            parameter.Rule = type + declarator;
+
+            simpleDeclaration.Rule = type + initDeclaratorList;
+            initDeclaratorList.Rule = MakePlusRule(initDeclaratorList, comma, initDeclarator);
+
+            initDeclarator.Rule = declarator + initializerOpt;
+            initializerOpt.Rule = Empty | initializer;
+            initializer.Rule = "=" + expression;
 
             embeddedStatement.Rule = block | nullStatement | expressionStatement | selectionStatement | iterationStatement | jumpStatement;
             nullStatement.Rule = semi;
@@ -174,23 +190,23 @@ namespace MintLanguage
             returnStatement.Rule = @return + expressionOpt + semi;
             MarkTransient(embeddedStatement, jumpStatement);
 
-            ifStatement.Rule = ToTerm("if") + lPar + expression + rPar + embeddedStatement + elseStatementOpt;
+            ifStatement.Rule = "if" + lPar + expression + rPar + embeddedStatement + elseStatementOpt;
             elseStatementOpt.Rule = Empty | elseStatement;
-            elseStatement.Rule = PreferShiftHere() + ToTerm("else") + embeddedStatement;
+            elseStatement.Rule = PreferShiftHere() + "else" + embeddedStatement;
             MarkTransient(elseStatementOpt);
 
-            switchStatement.Rule = ToTerm("switch") + lPar + expression + rPar + lBrace + switchCases + rBrace;
+            switchStatement.Rule = "switch" + lPar + expression + rPar + lBrace + switchCases + rBrace;
             switchCases.Rule = MakeStarRule(switchCases, caseStatement);
             caseStatement.Rule = caseLabel + colon + caseBodyStatements;
             caseLabel.Rule = caseConstantLabel | caseDefaultLabel;
-            caseConstantLabel.Rule = ToTerm("case") + literal;
-            caseDefaultLabel.Rule = ToTerm("default");
+            caseConstantLabel.Rule = "case" + literal;
+            caseDefaultLabel.Rule = "default";
             caseBodyStatements.Rule = MakeStarRule(caseBodyStatements, statement);
 
             whileStatement.Rule = "while" + lPar + expression + rPar + embeddedStatement;
 
             forStatement.Rule = "for" + lPar + forInitExp + semi + forCondExp + semi + forLoopExp + rPar + embeddedStatement;
-            forInitExp.Rule = expressionOpt | variableDeclaration;
+            forInitExp.Rule = expressionOpt | blockDeclaration;
             forCondExp.Rule = expressionOpt;
             forLoopExp.Rule = expressionOpt;
 
@@ -205,7 +221,7 @@ namespace MintLanguage
             MarkTransient(binExp);
 
             castExp.Rule = unaryExp | typecast;
-            typecast.Rule = lPar + type + rPar + castExp;
+            typecast.Rule = lPar + typeExt + rPar + castExp;
             MarkTransient(castExp);
 
             unaryExp.Rule = postfixExp | preIncDecExp | unaryOperatorExp;
